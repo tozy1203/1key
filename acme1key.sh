@@ -118,12 +118,12 @@ getDomainCert(){
     ipv6=$(curl -s6m8 https://ip.gs)
     read -p "请输入需要申请证书的泛域名（输入格式：example.com）：" domain
     [[ -z $domain ]] && red "未输入域名，无法执行操作！" && exit 1
-    read -p "请输入CloudFlare Global API Key：" GAK
-    [[ -z $GAK ]] && red "未输入CloudFlare Global API Key，无法执行操作！" && exit 1
-    export CF_Key="$GAK"
-    read -p "请输入CloudFlare的登录邮箱：" CFemail
-    [[ -z $domain ]] && red "未输入CloudFlare的登录邮箱，无法执行操作！" && exit 1
-    export CF_Email="$CFemail"
+    read -p "请输入CloudFlare API Token：" GAK
+    [[ -z $GAK ]] && red "未输入CloudFlare API Token，无法执行操作！" && exit 1
+    export CF_Token="$GAK"
+#    read -p "请输入CloudFlare的登录邮箱：" CFemail
+#    [[ -z $CFemail ]] && red "未输入CloudFlare的登录邮箱，无法执行操作！" && exit 1
+#    export CF_Email="$CFemail"
     if [[ -z $ipv4 ]]; then
         bash ~/.acme.sh/acme.sh --issue --dns dns_cf -d "*.${domain}" -d "${domain}" -k ec-256 --listen-v6
     else
@@ -138,12 +138,12 @@ getSingleDomainCert(){
     ipv4=$(curl -s4m8 https://ip.gs)
     ipv6=$(curl -s6m8 https://ip.gs)
     read -p "请输入需要申请证书的域名：" domain
-    read -p "请复制CloudFlare的Global API Key：" GAK
-    [[ -z $GAK ]] && red "未输入CloudFlare Global API Key，无法执行操作！" && exit 1
-    export CF_Key="$GAK"
-    read -p "请输入登录CloudFlare的注册邮箱地址：" CFemail
-    [[ -z $domain ]] && red "未输入CloudFlare的登录邮箱，无法执行操作！" && exit 1
-    export CF_Email="$CFemail"
+    read -p "请复制CloudFlare的API TOKEN：" GAK
+    [[ -z $GAK ]] && red "未输入CloudFlare API TOKEN，无法执行操作！" && exit 1
+    export CF_Token="$GAK"
+#    read -p "请输入登录CloudFlare的注册邮箱地址：" CFemail
+#    [[ -z $CFemail ]] && red "未输入CloudFlare的登录邮箱，无法执行操作！" && exit 1
+#    export CF_Email="$CFemail"
     if [[ -z $ipv4 ]]; then
         bash ~/.acme.sh/acme.sh --issue --dns dns_cf -d "${domain}" -k ec-256 --listen-v6
     else
