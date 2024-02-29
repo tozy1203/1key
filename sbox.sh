@@ -61,5 +61,7 @@ cat <<EOF
 vless://$uuid@$ip:8080/?type=ws&encryption=none&host=$ip&path=%2F$ip%3Fed%3D2048
 EOF
 
-restart()
+restart
 }
+
+main
