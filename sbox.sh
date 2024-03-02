@@ -60,7 +60,8 @@ cat > /etc/sing-box/config.json <<EOF
 }
 EOF
 cat <<EOF
-vless://$uuid@$ip:8080/?type=ws&encryption=none&host=$ip&path=%2F$path%3Fed%3D2048
+套cdn：
+vless://$uuid@ip.sb/?type=ws&encryption=none&host=$ip&path=%2F$path%3Fed%3D1024
 EOF
 
 restart
