@@ -1,7 +1,7 @@
 install() {
 if [ ! -f "/usr/bin/sing-box" ]; then
 echo "安装sbox"
-curl -s https://github.com/SagerNet/sing-box/releases/download/v1.8.0/sing-box_1.8.0_linux_amd64.deb|dpkg -i
+curl -LO https://github.com/SagerNet/sing-box/releases/download/v1.8.0/sing-box_1.8.0_linux_amd64.deb && dpkg -i sing-box_1.8.0_linux_amd64.deb
 fi
 }
 
