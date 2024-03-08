@@ -55,7 +55,7 @@ cat > /etc/sing-box/config.json <<EOF
             ],
             "transport": {
                 "type": "grpc",
-                "service_name": "$host" 
+                "service_name": "$path" 
             }
         }
     ],
@@ -69,7 +69,7 @@ EOF
 cat <<EOF
 套cdn：
 vless://$uuid@ip.sb:80/?type=ws&encryption=none&host=$host&path=%2F$path%3Fed%3D1024#ws-$host
-vless://$uuid@127.0.0.1:8001/?type=grpc&encryption=none&serviceName=$host#grpc-$host
+vless://$uuid@127.0.0.1:8001/?type=grpc&encryption=none&serviceName=$path#grpc-$host
 EOF
 
 restart
