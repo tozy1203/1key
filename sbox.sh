@@ -24,6 +24,13 @@ echo "path为: $path"
 
 echo "生成uuid"
 uuid=$(sing-box generate uuid)
+output=$(sing-box generate reality-keypair)
+
+# 使用awk提取PrivateKey
+prikey=$(echo "$output" | awk '/PrivateKey:/ {print $2}')
+
+# 使用awk提取PublicKey
+pubkey=$(echo "$output" | awk '/PublicKey:/ {print $2}')
 cat > /etc/sing-box/config.json <<EOF
  {
     "inbounds": [
@@ -57,6 +64,35 @@ cat > /etc/sing-box/config.json <<EOF
                 "type": "grpc",
                 "service_name": "$path" 
             }
+        },
+        {
+            "type": "vless",
+            "listen": "127.0.0.1",
+            "listen_port": 8002,
+            "users": [
+                {
+                    "uuid": "$uuid"
+                }
+            ],
+            "tls": {
+                "enabled": true,
+                "server_name": "$host",
+                "reality": {
+                    "enabled": true,
+                    "handshake": {
+                        "server": "127.0.0.1",
+                        "server_port": 443
+                    },
+                    "private_key": "$prikey",
+                    "short_id": [
+                        ""
+                    ]
+                }
+            },
+            "transport": {
+                "type": "http",
+                "host": []
+            }
         }
     ],
     "outbounds": [
@@ -70,6 +106,7 @@ cat <<EOF
 套cdn：
 vless://$uuid@ip.sb:80/?type=ws&encryption=none&host=$host&path=%2F$path%3Fed%3D1024#ws-$host
 vless://$uuid@127.0.0.1:8001/?type=grpc&encryption=none&serviceName=$path#grpc-$host
+vless://$uuid@127.0.0.1:8002/?type=http&encryption=none&sni=$host&fp=chrome&security=reality&pbk=$pubkey#x-$host
 EOF
 
 restart
