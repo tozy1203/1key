@@ -50,7 +50,7 @@ cat > /etc/sing-box/config.json <<EOF
             "listen_port": 8001,
             "users": [
                 {
-                    "uuid": "91af8448-6f2b-4b51-9184-6d7702cce341"
+                    "uuid": "$uuid"
                 }
             ],
             "transport": {
