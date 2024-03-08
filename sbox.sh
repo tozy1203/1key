@@ -11,23 +11,16 @@ systemctl restart sing-box
 }
 
 main() {
-read -p "输入host（回车获取ip）: " ip
+read -p "输入host: " host
 
-if [ -z "$ip" ]; then
-   ip=$(curl https://api.myip.la)
-    echo "外网ip为: $ip"
-else
-    echo "输入的内容为: $ip"
-fi
+echo "host为: $host"
 
 read -p "输入ws path（回车随机）: " path
 
 if [ -z "$path" ]; then
    path=$(cat /dev/urandom | tr -dc 'a-z' | fold -w 5 | head -n 1)
-    echo "生成的5位随机字符串为: $path"
-else
-    echo "输入的内容为: $path"
 fi
+echo "path为: $path"
 
 echo "生成uuid"
 uuid=$(sing-box generate uuid)
@@ -50,6 +43,20 @@ cat > /etc/sing-box/config.json <<EOF
                 "max_early_data": 2048,
                 "early_data_header_name": "Sec-WebSocket-Protocol"
             }
+        },
+        {
+            "type": "vless",
+            "listen": "127.0.0.1",
+            "listen_port": 8001,
+            "users": [
+                {
+                    "uuid": "91af8448-6f2b-4b51-9184-6d7702cce341"
+                }
+            ],
+            "transport": {
+                "type": "grpc",
+                "service_name": "$host" 
+            }
         }
     ],
     "outbounds": [
@@ -61,7 +68,8 @@ cat > /etc/sing-box/config.json <<EOF
 EOF
 cat <<EOF
 套cdn：
-vless://$uuid@ip.sb/?type=ws&encryption=none&host=$ip&path=%2F$path%3Fed%3D1024
+vless://$uuid@ip.sb/?type=ws&encryption=none&host=$host&path=%2F$path%3Fed%3D1024
+vless://$uuid@127.0.0.1:8001/?type=grpc&encryption=none&serviceName=$host
 EOF
 
 restart
