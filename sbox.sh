@@ -15,7 +15,7 @@ read -p "输入host: " host
 
 echo "host为: $host"
 
-read -p "输入ws path（回车随机）: " path
+read -p "输入httpupgrade path（回车随机）: " path
 
 if [ -z "$path" ]; then
    path=$(cat /dev/urandom | tr -dc 'a-z' | fold -w 5 | head -n 1)
@@ -45,10 +45,8 @@ cat > /etc/sing-box/config.json <<EOF
                 }
             ],
             "transport": {
-                "type": "ws",
-                "path": "/$path",
-                "max_early_data": 2048,
-                "early_data_header_name": "Sec-WebSocket-Protocol"
+                "type": "httpupgrade",
+                "path": "/$path"
             }
         },
         {
@@ -104,7 +102,7 @@ cat > /etc/sing-box/config.json <<EOF
 EOF
 cat <<EOF
 套cdn：
-vless://$uuid@ip.sb:80/?type=ws&encryption=none&host=$host&path=%2F$path%3Fed%3D1024#ws-$host
+vless://$uuid@ip.sb:80/?type=httpupgrade&encryption=none&host=$host&path=%2F$path%3Fed%3D1024#httpupgrade-$host
 vless://$uuid@127.0.0.1:8001/?type=grpc&encryption=none&serviceName=$path#grpc-$host
 vless://$uuid@127.0.0.1:8002/?type=http&encryption=none&sni=$host&fp=chrome&security=reality&pbk=$pubkey#x-$host
 EOF
