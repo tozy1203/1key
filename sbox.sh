@@ -1,3 +1,5 @@
+#!/bin/bash
+
 install() {
 if [ ! -f "/usr/bin/sing-box" ]; then
 echo "安装sbox"
@@ -9,27 +11,37 @@ restart() {
 echo "重启sbox"
 systemctl restart sing-box
 }
-
+viewclient() {
+cat /etc/sing-box/client.outs
+}
 main() {
-read -p "输入host: " host
-echo "host为: $host"
+echo "生成httpupgrade，hy2，ss，vision"
+read -p "输入SNIhost: " SNIhost
+echo "SNIhost为: $SNIhost"
+
+read -p "输入直连ip或域名（回车获取ip）: " host  
+if [ -z "$host" ]; then
+   host=$(curl -4 ip.sb)
+fi
+echo "直连host为: $host"
 
 read -p "输入httpupgrade path（回车随机）: " path
 if [ -z "$path" ]; then
    path=$(cat /dev/urandom | tr -dc 'a-z' | fold -w 5 | head -n 1)
 fi
-echo "path为: $path"
+echo "httpupgrade path为: $path"
 
 read -p "输入cloudflare api token: " token
 echo "cloudflare api token为: $token"
 
 echo "生成uuid"
 uuid=$(sing-box generate uuid)
-
+sspwd=$(sing-box generate rand --base64 16)
 cat > /etc/sing-box/config.json <<EOF
 {
 	"inbounds": [{
 		"type": "vless",
+		"tag": "httpupgrade",
 		"listen": "::",
 		"listen_port": 8080,
 		"users": [{
@@ -45,64 +57,88 @@ cat > /etc/sing-box/config.json <<EOF
 		}
 	},
 	{
-		"type": "vless",
-		"tag": "vless-in",
+		"type": "shadowsocks",
+		"tag": "ss-in",
 		"listen": "127.0.0.1",
-		"listen_port": 60081,
+		"listen_port": 5353,
+		"tcp_fast_open": true,
+		"method": "2022-blake3-aes-128-gcm",
+		"password": "$sspwd",
+		"multiplex": {
+			"enabled": true
+		}
+	},
+	{
+		"type": "vless",
+		"tag": "vision",
+		"listen": "::",
+		"listen_port": 8443,
 		"users": [{
 			"uuid": "$uuid",
 			"flow": "xtls-rprx-vision"
 		}],
 		"tls": {
 			"enabled": true,
-			"server_name": "$host",
+			"server_name": "$SNIhost",
 			"acme": {
-				"domain": ["$host"],
+				"domain": ["$SNIhost"],
 				"data_directory": "certs",
-				"default_server_name": "$host",
-				"email": "admin@$host",
+				"default_server_name": "$SNIhost",
+				"email": "admin@$SNIhost",
 				"dns01_challenge": {
 					"provider": "cloudflare",
 					"api_token": "$token"
 				}
 			}
 		}
+	},
+	{
+		"type": "hysteria2",
+		"tag": "hy2-in",
+		"listen": "::",
+		"listen_port": 443,
+		"users": [{
+			"name": "1",
+			"password": "$uuid"
+		}],
+		"ignore_client_bandwidth": false,
+		"tls": {
+			"enabled": true,
+			"server_name": "$SNIhost",
+			"acme": {
+				"domain": ["$SNIhost"],
+				"data_directory": "certs",
+				"default_server_name": "$SNIhost",
+				"email": "admin@$SNIhost",
+				"dns01_challenge": {
+					"provider": "cloudflare",
+					"api_token": "$token"
+				}
+			}
+		},
+		"masquerade": "https://127.0.0.1",
+		"brutal_debug": false
 	}],
 	"outbounds": [{
 		"type": "direct"
 	}]
 }
 EOF
-cat <<EOF
+cat > /etc/sing-box/client.outs <<EOF
 套cdn：
-vless://$uuid@ip.sb:80/?type=httpupgrade&encryption=none&host=$host&path=%2F$host#httpupgrade-$host
-vless://$uuid@127.0.0.1:60081/?type=tcp&encryption=none&flow=xtls-rprx-vision&sni=$host&fp=chrome&security=tls#xtls-$host
+vless://$uuid@ip.sb:80/?type=httpupgrade&encryption=none&host=$SNIhost&path=%2F$SNIhost#httpupgrade-$SNIhost
+vless://$uuid@$host:8443/?type=tcp&encryption=none&flow=xtls-rprx-vision&sni=$SNIhost&fp=chrome&security=tls#xtls-$SNIhost
 出站json：
 {
 	"type": "vless",
-	"tag": "$host",
-	"server": "www.gco.gov.qa",
+	"tag": "$SNIhost.upgrade",
+	"server": "ip.sb",
 	"server_port": 80,
 	"uuid": "$uuid",
 	"transport": {
 		"type": "httpupgrade",
 		"path": "/$path",
-		"Host": "$host"
-	}
-},
-{
-	"type": "vless",
-	"server": "127.0.0.1",
-	"server_port": 60081,
-	"uuid": "$uuid",
-	"flow": "xtls-rprx-vision",
-	"tls": {
-		"enabled": true,
-		"server_name": "$host",
-		"utls": {
-			"enabled": true,
-			"fingerprint": "chrome"
-		}
+		"Host": "$SNIhost"
 	},
 	"multiplex": {
 		"enabled": true,
@@ -110,11 +146,84 @@ vless://$uuid@127.0.0.1:60081/?type=tcp&encryption=none&flow=xtls-rprx-vision&sn
 		"padding": false,
 		"protocol": "smux"
 	},
-	"tag": "xtls"
+	
+},
+{
+	"type": "shadowsocks",
+	"tag": "$SNIhost.ss",
+	"server": "127.0.0.1",
+	"server_port": 5353,
+	"method": "2022-blake3-aes-128-gcm",
+	"password": "$sspwd",
+	"multiplex": {
+		"enabled": true,
+		"max_connections": 1,
+		"min_streams": 32,
+		"padding": true,
+		"protocol": "smux"
+	},
+	"detour": "$SNIhost.upgrade"
+},
+{
+	"type": "vless",
+	"server": "$host",
+	"server_port": 8443,
+	"uuid": "$uuid",
+	"flow": "xtls-rprx-vision",
+	"tls": {
+		"enabled": true,
+		"server_name": "$SNIhost",
+		"utls": {
+			"enabled": true,
+			"fingerprint": "chrome"
+		}
+	}"tag": "$host.vision"
+},
+{
+	"type": "hysteria2",
+	"tag": "$host.hy2",
+	"server": "$host",
+	"server_port": 443,
+	"up_mbps": 5,
+	"down_mbps": 100,
+	"password": "$uuid",
+	"tls": {
+		"enabled": true,
+		"server_name": "$SNIhost"
+	},
+	"brutal_debug": false
 }
 EOF
-
+viewclient
 restart
 }
-install
-main
+
+menu() {
+echo "请选择一个选项:"
+echo "1. 新安装"
+echo "2. 列查看客户端配置"
+echo "3. 退出"
+
+while true; do
+    read choice
+
+    case $choice in
+        1)
+            install
+            main
+            ;;
+        2)
+            viewclient
+            ;;
+        3)
+            echo "退出程序"
+            exit 0
+            ;;
+        *)
+            echo "无效的选项，请重新选择："
+            ;;
+    esac
+done
+}
+
+
