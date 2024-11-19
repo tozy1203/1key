@@ -127,6 +127,7 @@ EOF
 cat > /etc/sing-box/client.outs <<EOF
 套cdn：
 vless://$uuid@ip.sb:80/?type=httpupgrade&encryption=none&host=$SNIhost&path=%2F$SNIhost#httpupgrade-$SNIhost
+vless://$uuid@$host:8080/?type=httpupgrade&encryption=none&host=$SNIhost&path=%2F$SNIhost#httpupgrade-$SNIhost
 vless://$uuid@$host:8443/?type=tcp&encryption=none&flow=xtls-rprx-vision&sni=$SNIhost&fp=chrome&security=tls#xtls-$SNIhost
 出站json：
 {
@@ -134,6 +135,25 @@ vless://$uuid@$host:8443/?type=tcp&encryption=none&flow=xtls-rprx-vision&sni=$SN
 	"tag": "$SNIhost.upgrade",
 	"server": "ip.sb",
 	"server_port": 80,
+	"uuid": "$uuid",
+	"transport": {
+		"type": "httpupgrade",
+		"path": "/$path",
+		"Host": "$SNIhost"
+	},
+	"multiplex": {
+		"enabled": true,
+		"max_connections": 1,
+		"padding": false,
+		"protocol": "smux"
+	},
+	
+},
+{
+	"type": "vless",
+	"tag": "$host.upgrade",
+	"server": "$host",
+	"server_port": 8080,
 	"uuid": "$uuid",
 	"transport": {
 		"type": "httpupgrade",
@@ -226,5 +246,4 @@ while true; do
 done
 }
 menu
-
 
