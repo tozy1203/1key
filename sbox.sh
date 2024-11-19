@@ -225,5 +225,6 @@ while true; do
     esac
 done
 }
+menu
 
 
