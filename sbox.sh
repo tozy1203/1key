@@ -4,6 +4,7 @@ install() {
 if [ ! -f "/usr/bin/sing-box" ]; then
 echo "安装sbox"
 curl -LO https://github.com/SagerNet/sing-box/releases/download/v1.9.7/sing-box_1.9.7_linux_amd64.deb && dpkg -i sing-box_1.9.7_linux_amd64.deb
+systemctl enable sing-box
 fi
 }
 
@@ -151,12 +152,13 @@ restart
 }
 
 menu() {
-echo "请选择一个选项:"
-echo "1. 新安装"
-echo "2. 列查看客户端配置"
-echo "3. 退出"
+
 
 while true; do
+    echo "请选择一个选项:"
+    echo "1. 新安装"
+    echo "2. 列查看客户端配置"
+    echo "3. 退出"
     read choice
 
     case $choice in
