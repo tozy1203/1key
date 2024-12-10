@@ -15,15 +15,14 @@ viewclient() {
 cat /etc/sing-box/client.outs
 }
 main() {
-echo "生成httpupgrade，hy2，ss，vision"
-read -p "输入SNIhost: " SNIhost
-echo "SNIhost为: $SNIhost"
-
-read -p "输入直连ip或域名（回车获取ip）: " host  
-if [ -z "$host" ]; then
-   host=$(curl -4 ip.sb)
-fi
+read -p "输入直连域名: " host  
 echo "直连host为: $host"
+
+read -p "输入cdn host(回车为直链域名): " cdnHost
+if [ -z "$cdnHost" ]; then
+   cdnHost=$host
+fi
+echo "cdnHost为: $cdnHost"
 
 read -p "输入httpupgrade path（回车随机）: " path
 if [ -z "$path" ]; then
@@ -31,8 +30,11 @@ if [ -z "$path" ]; then
 fi
 echo "httpupgrade path为: $path"
 
-read -p "输入cloudflare api token: " token
-echo "cloudflare api token为: $token"
+read -p "输入acme路径(默认/root/.local/share/caddy): " acmeRoot 
+if [ -z "$acmeRoot" ]; then
+   acmeRoot="/root/.local/share/caddy"
+fi 
+echo "acme路径为: $acmeRoot"
 
 echo "生成uuid"
 uuid=$(sing-box generate uuid)
@@ -41,7 +43,6 @@ cat > /etc/sing-box/config.json <<EOF
 {
 	"inbounds": [{
 		"type": "vless",
-		"tag": "httpupgrade",
 		"listen": "::",
 		"listen_port": 8080,
 		"users": [{
@@ -54,6 +55,7 @@ cat > /etc/sing-box/config.json <<EOF
 		},
 		"multiplex": {
 			"enabled": true
+			}
 		}
 	},
 	{
@@ -69,30 +71,6 @@ cat > /etc/sing-box/config.json <<EOF
 		}
 	},
 	{
-		"type": "vless",
-		"tag": "vision",
-		"listen": "::",
-		"listen_port": 8443,
-		"users": [{
-			"uuid": "$uuid",
-			"flow": "xtls-rprx-vision"
-		}],
-		"tls": {
-			"enabled": true,
-			"server_name": "$SNIhost",
-			"acme": {
-				"domain": ["$SNIhost"],
-				"data_directory": "certs",
-				"default_server_name": "$SNIhost",
-				"email": "admin@$SNIhost",
-				"dns01_challenge": {
-					"provider": "cloudflare",
-					"api_token": "$token"
-				}
-			}
-		}
-	},
-	{
 		"type": "hysteria2",
 		"tag": "hy2-in",
 		"listen": "::",
@@ -104,19 +82,14 @@ cat > /etc/sing-box/config.json <<EOF
 		"ignore_client_bandwidth": false,
 		"tls": {
 			"enabled": true,
-			"server_name": "$SNIhost",
+			"server_name": "$host",
 			"acme": {
-				"domain": ["$SNIhost"],
-				"data_directory": "certs",
-				"default_server_name": "$SNIhost",
-				"email": "admin@$SNIhost",
-				"dns01_challenge": {
-					"provider": "cloudflare",
-					"api_token": "$token"
-				}
+				"domain": ["$host"],
+				"data_directory": "$acmeRoot",
+				"default_server_name": "$host"
 			}
 		},
-		"masquerade": "https://127.0.0.1",
+		"masquerade": "http://127.0.0.1:5244",
 		"brutal_debug": false
 	}],
 	"outbounds": [{
@@ -126,90 +99,48 @@ cat > /etc/sing-box/config.json <<EOF
 EOF
 cat > /etc/sing-box/client.outs <<EOF
 套cdn：
-vless://$uuid@ip.sb:80/?type=httpupgrade&encryption=none&host=$SNIhost&path=%2F$SNIhost#httpupgrade-$SNIhost
-vless://$uuid@$host:8080/?type=httpupgrade&encryption=none&host=$SNIhost&path=%2F$SNIhost#httpupgrade-$SNIhost
-vless://$uuid@$host:8443/?type=tcp&encryption=none&flow=xtls-rprx-vision&sni=$SNIhost&fp=chrome&security=tls#xtls-$SNIhost
+vless://$uuid@ip.sb:80/?type=httpupgrade&encryption=none&host=$cdnHost&path=%2F$path#httpupgrade-$cdnHost
+hy2://$uuid@$host:443/?sni=$host#hy2-$host
 出站json：
 {
 	"type": "vless",
-	"tag": "$SNIhost.upgrade",
+	"tag": "$cdnHost.cdn",
 	"server": "ip.sb",
 	"server_port": 80,
 	"uuid": "$uuid",
 	"transport": {
 		"type": "httpupgrade",
 		"path": "/$path",
-		"Host": "$SNIhost"
-	},
-	"multiplex": {
-		"enabled": true,
-		"max_connections": 1,
-		"padding": false,
-		"protocol": "smux"
-	},
-	
-},
-{
-	"type": "vless",
-	"tag": "$host.upgrade",
-	"server": "$host",
-	"server_port": 8080,
-	"uuid": "$uuid",
-	"transport": {
-		"type": "httpupgrade",
-		"path": "/$path",
-		"Host": "$SNIhost"
-	},
-	"multiplex": {
-		"enabled": true,
-		"max_connections": 1,
-		"padding": false,
-		"protocol": "smux"
-	},
-	
+		"Host": "$cdnHost"
+	}
 },
 {
 	"type": "shadowsocks",
-	"tag": "$SNIhost.ss",
+	"tag": "$cdnHost.ss",
 	"server": "127.0.0.1",
 	"server_port": 5353,
 	"method": "2022-blake3-aes-128-gcm",
 	"password": "$sspwd",
 	"multiplex": {
 		"enabled": true,
-		"max_connections": 1,
-		"min_streams": 32,
+		"max_connections": 8,
+		"min_streams": 4,
 		"padding": true,
 		"protocol": "smux"
 	},
-	"detour": "$SNIhost.upgrade"
-},
-{
-	"type": "vless",
-	"server": "$host",
-	"server_port": 8443,
-	"uuid": "$uuid",
-	"flow": "xtls-rprx-vision",
-	"tls": {
-		"enabled": true,
-		"server_name": "$SNIhost",
-		"utls": {
-			"enabled": true,
-			"fingerprint": "chrome"
-		}
-	}"tag": "$host.vision"
+	"detour": "$cdnHost.cdn"
 },
 {
 	"type": "hysteria2",
 	"tag": "$host.hy2",
 	"server": "$host",
 	"server_port": 443,
-	"up_mbps": 5,
+	"up_mbps": 10,
 	"down_mbps": 100,
 	"password": "$uuid",
 	"tls": {
 		"enabled": true,
-		"server_name": "$SNIhost"
+		"server_name": "$host"
 	},
 	"brutal_debug": false
 }
