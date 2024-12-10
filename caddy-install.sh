@@ -50,7 +50,7 @@ get_caddy() {
     $(which mkdir) -p "/etc/caddy"
     printf "Cretated: %s\n" "/etc/caddy"
 
-    wget "${caddy_link}" -O /tmp/caddy.tar.xz && tar xvf /tmp/caddy.tar.xz -d /usr/bin/ && $(which chmod) +x /usr/bin/caddy
+    wget "${caddy_link}" -O /tmp/caddy.tar.xz && tar xvf /tmp/caddy.tar.xz -C /usr/bin/ && $(which chmod) +x /usr/bin/caddy
     printf "Installed: %s\n" "/usr/bin/caddy"
 
 
@@ -58,7 +58,7 @@ get_caddy() {
     set_caddy_systemd
 
     systemctl daemon-reload
-    #systemctl enable caddy
+    systemctl enable caddy
 
     echo "Caddy 2 is installed."
   fi
