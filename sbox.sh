@@ -56,7 +56,6 @@ cat > /etc/sing-box/config.json <<EOF
 		"multiplex": {
 			"enabled": true
 			}
-		}
 	},
 	{
 		"type": "shadowsocks",
@@ -86,7 +85,9 @@ cat > /etc/sing-box/config.json <<EOF
 			"acme": {
 				"domain": ["$host"],
 				"data_directory": "$acmeRoot",
-				"default_server_name": "$host"
+				"default_server_name": "$host",
+                                "disable_http_challenge": true,
+                                "disable_tls_alpn_challenge": true
 			}
 		},
 		"masquerade": "http://127.0.0.1:5244",
